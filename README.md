@@ -19,8 +19,8 @@ Key components:
   * `Live_DNN_runner_Pi.py`: Continuously records audio on the Pi, applies band-pass and resampling, detects activity, extracts GCC-PHAT & Gammatone features, runs the trained DNN for real-time SSL, visualizes results, and commands Arduino stepper motors to track the source.
 * **Conversational LLM**:
 
-* `LLM_Server.py`: Lightweight Flask API that forwards incoming text via HTTP POST to a local Ollama LLM (“BEATRIX” model) and returns its generated response as JSON.
-* `Live_LLM_runner_Pi.py`: Continuously records stereo audio until end-of-speech silence using a Butterworth band-pass filter, selects the loudest channel for on-device Whisper transcription, sends the text via HTTP POST to a remote Flask LLM server, and vocalizes replies locally with Piper TTS.
+  * `LLM_Server.py`: Lightweight Flask API that forwards incoming text via HTTP POST to a local Ollama LLM (“BEATRIX” model) and returns its generated response as JSON.
+  * `Live_LLM_runner_Pi.py`: Continuously records stereo audio until end-of-speech silence using a Butterworth band-pass filter, selects the loudest channel for on-device Whisper transcription, sends the text via HTTP POST to a remote Flask LLM server, and vocalizes replies locally with Piper TTS.
 
 ## Requirements
 
