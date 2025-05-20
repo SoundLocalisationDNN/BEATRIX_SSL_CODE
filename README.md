@@ -39,8 +39,6 @@ dtoverlay=googlevoicehat-soundcard
 * **ASR Accuracy**: \~94% transcription accuracy with small.en Faster-Whisper.
 * **LLM Response**: Sub-0.05 s per word TTS via Piper.
 
-Detailed plots and evaluation metrics are in the `examples/` folder.
-
 ## Citation
 
 If you use this work, please cite:
