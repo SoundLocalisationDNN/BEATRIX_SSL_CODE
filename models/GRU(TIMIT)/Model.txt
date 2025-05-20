@@ -1,0 +1,67 @@
+class AudioRegressionCNN(nn.Module):
+    def __init__(self):
+        super(AudioRegressionCNN, self).__init__()
+        # Bidirectional GRUs for left, right, and difference spectrograms
+        self.gru_left = nn.GRU(input_size=100, hidden_size=100, num_layers=2, 
+                               batch_first=True, bidirectional=True, dropout=0.1)
+        self.gru_right = nn.GRU(input_size=100, hidden_size=100, num_layers=2, 
+                                batch_first=True, bidirectional=True, dropout=0.1)
+        self.gru_diff = nn.GRU(input_size=100, hidden_size=100, num_layers=2, 
+                               batch_first=True, bidirectional=True, dropout=0.1)
+
+        # CNN branch replacing the previous GCC-PHAT GRU
+        # Input: (batch, 1, length=256)
+        self.gcc_conv = nn.Sequential(
+            nn.Conv1d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm1d(32), nn.ReLU(),
+
+            nn.Conv1d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64), nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2, stride=2),  # length -> length/2
+
+            nn.Conv1d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm1d(128), nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2, stride=2),  # length/2 -> length/4
+
+            # Global pooling to get fixed-size feature vector
+            nn.AdaptiveAvgPool1d(1)  # (batch, 128, 1)
+        )
+
+        # Fully connected layers for fusion and regression
+        # left_feat(256) + right_feat(256) + diff_feat(256) + gcc_feat(128) = 896
+        self.fc = nn.Sequential(
+            nn.Linear(728, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, 2)  # Regression output: e.g., [sin(angle), cos(angle)]
+        )
+
+    def forward(self, spec_left, spec_right, gcc):
+        # spec_left/right: (batch, 1, freq=128, time)
+        # gcc: (batch, 1, length=256)
+        # Prepare left/right sequences for GRUs
+        left_seq = spec_left.squeeze(1).permute(0, 2, 1)
+        right_seq = spec_right.squeeze(1).permute(0, 2, 1)
+
+        # Left GRU
+        _, left_hidden = self.gru_left(left_seq)
+        left_feat = torch.cat([left_hidden[-2], left_hidden[-1]], dim=1)
+
+        # Right GRU
+        _, right_hidden = self.gru_right(right_seq)
+        right_feat = torch.cat([right_hidden[-2], right_hidden[-1]], dim=1)
+
+        # Difference GRU
+        diff_seq = left_seq - right_seq
+        _, diff_hidden = self.gru_diff(diff_seq)
+        diff_feat = torch.cat([diff_hidden[-2], diff_hidden[-1]], dim=1)
+
+        # GCC-PHAT CNN branch
+        # gcc is already (batch, 1, length)
+        gcc_feat_map = self.gcc_conv(gcc)      # (batch, 128, 1)
+        gcc_feat = gcc_feat_map.view(gcc_feat_map.size(0), -1)  # (batch, 128)
+
+        # Concatenate all features
+        combined = torch.cat([left_feat, right_feat, diff_feat, gcc_feat], dim=1)  # (batch, 896)
+        out = self.fc(combined)
+        return out
